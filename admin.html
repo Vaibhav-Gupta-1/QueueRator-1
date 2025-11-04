@@ -1,0 +1,90 @@
+<!-- templates/admin.html
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin Portal | Smart Queue</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="hero">
+    <h1>Admin Portal</h1>
+    <p>Manage all active queues, view QR codes, and control flow.</p>
+    <button id="newQueueBtn">+ Create New Queue</button>
+  </header>
+
+  <section class="panel">
+    <div class="panel-inner">
+      <h2>Active Queues</h2>
+      <div id="queueList"></div>
+    </div>
+  </section>
+
+<script>
+  async function api(path, opts) {
+    const r = await fetch(path, opts);
+    return r.json();
+  }
+
+  const newBtn = document.getElementById('newQueueBtn');
+  const listDiv = document.getElementById('queueList');
+
+  async function loadQueues() {
+    const res = await fetch('/admin');
+    const html = await res.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const serverData = doc.querySelectorAll('[data-qid]');
+    listDiv.innerHTML = "";
+    serverData.forEach((el) => listDiv.appendChild(el));
+  }
+
+  newBtn.addEventListener('click', async () => {
+    const res = await api('/create_queue', { method: 'POST' });
+    await loadQueues();
+  });
+
+  async function deleteQueue(qid) {
+    if (!confirm('Delete this queue?')) return;
+    await api(`/delete_queue/${qid}`, { method: 'POST' });
+    await loadQueues();
+  }
+
+  window.deleteQueue = deleteQueue;
+  loadQueues();
+</script>
+
+</body>
+</html> -->
+
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin Portal - Smart Queue</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>Admin Portal</h1>
+  <button id="createBtn">+ Create New Queue</button>
+
+  <div id="queueList">
+    {% for qid, qdata in queues.items() %}
+      <div class="queue-card">
+        <h3>{{ qid }}</h3>
+        <img src="/queue/{{ qid }}/qr" width="100"><br>
+        <a href="/queue/{{ qid }}">Open Queue</a>
+      </div>
+    {% endfor %}
+  </div>
+
+<script>
+async function createQueue() {
+  const res = await fetch('/create_queue', {method:'POST'});
+  const data = await res.json();
+  window.location.reload();
+}
+document.getElementById('createBtn').addEventListener('click', createQueue);
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Join Queue</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h2>Join Queue: {{ queue_id }}</h2>
+  <input id="joinName" placeholder="Enter your name">
+  <button id="joinBtn">Join Queue</button>
+  <ul id="queueList"></ul>
+  <p id="yourPosition"></p>
+
+<script>
+const qid = "{{ queue_id }}";
+
+document.getElementById('joinBtn').addEventListener('click', async ()=>{
+  const name = document.getElementById('joinName').value.trim();
+  if (!name) return alert("Enter your name");
+  await fetch(`/api/queue/${qid}/add`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name})
+  });
+});
+
+setInterval(async ()=>{
+  const res = await fetch(`/api/queue/${qid}/data`);
+  const data = await res.json();
+  const list = data.users.map((u,i)=>`<li>#${i+1} - ${u}</li>`).join('');
+  document.getElementById('queueList').innerHTML = list;
+}, 2000);
+</script>
+</body>
+</html>

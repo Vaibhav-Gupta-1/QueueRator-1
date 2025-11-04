@@ -1,0 +1,173 @@
+<!-- templates/index.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>QueueRator</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="hero">
+    <h1>QueueRator<br><span>Smarter Line - Lesser Time </span></h1>
+    <p>Create queues instantly, join with a QR code scan, and manage wait times effortlessly.<br>No apps to download, no sign-ups required.</p>
+    <div class="hero-buttons">
+      <button id="createBtn">+ Create Queue</button>
+      <button id="openJoinBtn">Join Queue</button>
+    </div>
+  </header>
+
+  <section id="adminPanel" class="panel hidden">
+    <div class="panel-inner">
+      <h2>Admin • Manage Queue</h2>
+
+      <div class="admin-row">
+        <div>
+          <label>Queue ID</label>
+          <div id="queueId" class="boxed"></div>
+        </div>
+        <br></br>
+        <div>
+          <label>QR Code</label>
+          <div id="qrWrap" class="boxed"><img id="qrImage" alt="QR" /></div>
+        </div>
+      </div>
+
+      <div class="admin-row">
+        <input id="adminAddName" placeholder="Enter name to add" />
+        <button id="adminAddBtn">Add</button>
+        <button id="adminNextBtn">Call Next</button>
+        <button id="adminClearBtn">Clear Queue</button>
+      </div>
+
+      <div class="queue-display">
+        <h3>Live Queue</h3>
+        <ul id="adminQueueList"></ul>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="joinPanel" class="panel hidden">
+    <div class="panel-inner">
+      <h2>Join a Queue</h2>
+      <p>Scan a queue QR or enter a Queue ID below</p>
+
+      <div class="join-row">
+        <input id="joinQueueId" placeholder="Queue ID (or scan QR)" />
+        <input id="joinName" placeholder="Your name (optional)" />
+        <button id="joinNowBtn">Join Now</button>
+      </div>
+
+      <div class="queue-display">
+        <h3>Queue Preview</h3>
+        <ul id="joinQueueList"></ul>
+        <p id="yourPosition"></p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2025 Developers — QueueRator </p>
+  </footer>
+
+<script>
+  // client behaviors for index (admin create + join flows)
+  async function api(path, opts) {
+    const res = await fetch(path, opts);
+    return res.json();
+  }
+
+  const createBtn = document.getElementById('createBtn');
+  const openJoinBtn = document.getElementById('openJoinBtn');
+  const adminPanel = document.getElementById('adminPanel');
+  const joinPanel = document.getElementById('joinPanel');
+
+  createBtn.addEventListener('click', async () => {
+    const r = await api('/create_queue', { method: 'POST' });
+    const qid = r.queue_id;
+    document.getElementById('queueId').innerText = qid;
+    document.getElementById('qrImage').src = `/queue/${qid}/qr`;
+    adminPanel.classList.remove('hidden');
+    joinPanel.classList.add('hidden');
+    // start polling admin queue
+    startAdminPolling(qid);
+  });
+
+  openJoinBtn.addEventListener('click', () => {
+    joinPanel.classList.remove('hidden');
+    adminPanel.classList.add('hidden');
+  });
+
+  // Admin controls
+  document.getElementById('adminAddBtn').addEventListener('click', async () => {
+    const qid = document.getElementById('queueId').innerText;
+    const name = document.getElementById('adminAddName').value.trim();
+    if (!qid) return alert('Create a queue first');
+    await api(`/api/queue/${qid}/add`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name })
+    });
+  });
+
+  document.getElementById('adminNextBtn').addEventListener('click', async () => {
+    const qid = document.getElementById('queueId').innerText;
+    if (!qid) return alert('Create a queue first');
+    await api(`/api/queue/${qid}/next`, { method: 'POST' });
+  });
+
+  document.getElementById('adminClearBtn').addEventListener('click', async () => {
+    const qid = document.getElementById('queueId').innerText;
+    if (!qid) return alert('Create a queue first');
+    await api(`/api/queue/${qid}/clear`, { method: 'POST' });
+  });
+
+  // join flow
+  document.getElementById('joinNowBtn').addEventListener('click', async () => {
+    const qid = document.getElementById('joinQueueId').value.trim();
+    if (!qid) return alert('Enter a Queue ID or scan QR');
+    const name = document.getElementById('joinName').value.trim() || null;
+    const res = await api(`/api/queue/${qid}/join`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name })
+    });
+    if (res.error) return alert('Error: ' + res.error);
+    // display own position and start polling
+    startJoinPolling(qid, res.name);
+  });
+
+  
+  // Polling functions
+  let adminInterval = null;
+  function startAdminPolling(qid) {
+    if (adminInterval) clearInterval(adminInterval);
+    async function tick() {
+      const data = await api(`/api/queue/${qid}/data`);
+      const users = data.users || [];
+      document.getElementById('adminQueueList').innerHTML = users.map((u,i)=>`<li>#${i+1} - ${u}</li>`).join('');
+    }
+    tick();
+    adminInterval = setInterval(tick, 1500);
+  }
+
+  let joinInterval = null;
+  function startJoinPolling(qid, myName) {
+    if (joinInterval) clearInterval(joinInterval);
+    async function tick() {
+      const data = await api(`/api/queue/${qid}/data`);
+      if (data.error) {
+        document.getElementById('yourPosition').innerText = 'Queue not found';
+        return;
+      }
+      const users = data.users || [];
+      document.getElementById('joinQueueList').innerHTML = users.map((u,i)=>`<li>#${i+1} - ${u}</li>`).join('');
+      const pos = users.indexOf(myName);
+      document.getElementById('yourPosition').innerText = pos>=0 ? `Your position: #${pos+1}` : 'You have been served 🎉';
+    }
+    tick();
+    joinInterval = setInterval(tick, 1500);
+  }
+</script>
+</body>
+</html>
