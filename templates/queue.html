@@ -12,7 +12,7 @@
   </br>
     <input id="nameInput" placeholder="Enter your name">
     <button id="joinBtn">Join Queue</button>
-    <ul id="queueList"></ul>
+    <p id="estimatedWaitTime"></p>  <ul id="queueList"></ul>
   </div>
 <script>
 const qid = "{{ queue_id }}";
@@ -29,6 +29,12 @@ async function updateQueue(){
   const data = await res.json();
   const users = data.users || [];
   document.getElementById('queueList').innerHTML = users.map((u,i)=>`<li>#${i+1} - ${u}</li>`).join('');
+  
+  // NEW: Update EWT
+  const ewt = data.ewt || 0; // Get EWT in minutes
+  document.getElementById('estimatedWaitTime').innerText = ewt > 0 
+    ? `Estimated Wait Time: ~${ewt} minutes` 
+    : 'No wait time expected.';
 }
 setInterval(updateQueue, 1500);
 updateQueue();
